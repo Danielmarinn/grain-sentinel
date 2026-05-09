@@ -1,0 +1,12 @@
+venv/
+.venv/
+*.pyc
+__pycache__/
+.ipynb_checkpoints/
+.ipython/
+.jupyter/
+.matplotlib/
+runtime/
+logs/
+data/input/*
+data/output/*
