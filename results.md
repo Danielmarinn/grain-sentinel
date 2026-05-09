@@ -106,3 +106,15 @@ Ground truth is saved as `data/processed/ground_truth_timestamps.csv` with 25 in
 - Metrics output: `data/processed/filtered_metrics.txt`
 - Filtered plot: `plots/stl_anomalies_filtered.png`
 - Filtered CLI script: `scripts/detector_filtered.py`
+
+## VPS Deployment
+
+Deployment is live as of 2026-05-09 on `root@134.209.234.253`.
+
+- Remote project path: `/root/grain-sentinel`
+- Remote input path: `/root/grain-sentinel/data/input/latest.csv`
+- Remote output path: `/root/grain-sentinel/data/output/alerts.jsonl`
+- Cron schedule: every 10 minutes
+- Cron command: `cd /root/grain-sentinel && ./venv/bin/python detector_filtered.py --input data/input/latest.csv --output data/output/alerts.jsonl >> logs/cron.log 2>&1`
+
+Manual deployment test succeeded with `candidate_count=148` and `anomaly_count=42`. Cron also ran successfully and appended a second JSON line to `data/output/alerts.jsonl`.

@@ -4,7 +4,6 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from statsmodels.tsa.seasonal import STL
@@ -247,6 +246,8 @@ def plot_filtered_detection(
     slope_threshold: float,
     residual_min: float,
 ) -> None:
+    import matplotlib.pyplot as plt
+
     plot_path.parent.mkdir(parents=True, exist_ok=True)
     anomalies = detection["anomalies"].astype(bool)
 
@@ -301,10 +302,11 @@ def plot_filtered_detection(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run auditable filtered STL + rolling MAD anomaly detection.")
-    parser.add_argument("input_csv", type=Path, help="Path to the input CSV file.")
+    parser.add_argument("input_csv", type=Path, nargs="?", help="Path to the input CSV file.")
+    parser.add_argument("--input", dest="input_option", type=Path, help="Path to the input CSV file.")
     parser.add_argument("--timestamp-column", default=None, help="Timestamp column. Inferred if omitted.")
     parser.add_argument("--sensor-column", default=DEFAULT_SENSOR_COLUMN, help="Numeric temperature/sensor column.")
-    parser.add_argument("--output-log", type=Path, default=None, help="Optional JSONL log path.")
+    parser.add_argument("--output-log", "--output", dest="output_log", type=Path, default=None, help="Optional JSONL log path.")
     parser.add_argument("--audit-dir", type=Path, default=None, help="Directory for audit CSV outputs.")
     parser.add_argument("--ground-truth", type=Path, default=None, help="Optional ground truth timestamp CSV.")
     parser.add_argument("--plot-path", type=Path, default=None, help="Optional PNG plot path.")
@@ -323,9 +325,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    input_csv = args.input_option or args.input_csv
+    if input_csv is None:
+        raise SystemExit("Pass an input CSV path as a positional argument or with --input.")
+
     trend_window = make_trend_window(args.period, args.trend_window)
     series, timestamp_column = load_sensor_series(
-        args.input_csv,
+        input_csv,
         sensor_column=args.sensor_column,
         timestamp_column=args.timestamp_column,
         resample_rule=args.resample_rule,
@@ -362,7 +368,7 @@ def main() -> None:
     records = build_records(series, detection, args.sensor_column)
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "input_csv": str(args.input_csv),
+        "input_csv": str(input_csv),
         "timestamp_column": timestamp_column,
         "sensor_column": args.sensor_column,
         "resampled_points": int(len(series)),
