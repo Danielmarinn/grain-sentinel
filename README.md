@@ -32,9 +32,11 @@ Validation used a public weather temperature dataset as a proxy because public g
 
 | Stage | Recall | Precision | False positives |
 | --- | ---: | ---: | ---: |
-| Initial STL + MAD | 68.0% | - | - |
+| Initial STL + MAD | 68.0% | n/a | n/a |
 | Tuned threshold | 92.0% | 15.5% | 125 |
 | Final ramp-gated detector | 88.0% | 52.4% | 20 |
+
+`n/a` means that precision and false-positive counts were not recorded for the initial baseline run; the complete before/after comparison is between the tuned threshold detector and the final ramp-gated detector.
 
 The final filter reduced false positives from 125 to 20 while keeping recall at 88%. The tuned thresholds are data-specific and should be retuned on local industrial sensor history before production use at a new site.
 
