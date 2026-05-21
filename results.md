@@ -115,6 +115,6 @@ Deployment is live as of 2026-05-09 on `root@134.209.234.253`.
 - Remote input path: `/root/grain-sentinel/data/input/latest.csv`
 - Remote output path: `/root/grain-sentinel/data/output/alerts.jsonl`
 - Cron schedule: every 10 minutes
-- Cron command: `cd /root/grain-sentinel && ./venv/bin/python detector_filtered.py --input data/input/latest.csv --output data/output/alerts.jsonl >> logs/cron.log 2>&1`
+- Cron command: `cd /root/grain-sentinel && ./venv/bin/python scripts/detector_filtered.py --input data/input/latest.csv --timestamp-column timestamp --sensor-column temperature --output-log data/output/alerts.jsonl >> logs/cron.log 2>&1`
 
 Manual deployment test succeeded with `candidate_count=148` and `anomaly_count=42`. Cron also ran successfully and appended a second JSON line to `data/output/alerts.jsonl`.

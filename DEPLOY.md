@@ -1,63 +1,103 @@
-# Grain Sentinel Deployment Notes
+# Grain Sentinel Deployment Guide
 
-This is a lightweight cron-based deployment outline for a Linux VPS.
+This guide describes the lightweight VPS deployment used by the final ramp-gated detector. The production-facing entrypoint is `scripts/detector_filtered.py`.
 
-## 1. Install System Packages
+## 1. Provision the VPS
+
+Use a small Ubuntu VPS or droplet. Install Python and virtual environment support:
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-venv python3-pip
+sudo apt install -y git python3 python3-venv python3-pip
 ```
 
-## 2. Create Project And Virtual Environment
+## 2. Clone and install
 
 ```bash
-mkdir -p ~/projects/grain-sentinel
-cd ~/projects/grain-sentinel
-python3 -m venv .venv
-. .venv/bin/activate
+mkdir -p /root
+cd /root
+git clone https://github.com/Danielmarinn/grain-sentinel.git
+cd /root/grain-sentinel
+
+python3 -m venv venv
+. venv/bin/activate
 pip install --upgrade pip
-pip install pandas numpy statsmodels scipy
+pip install -r requirements.txt
 ```
 
-Copy the project scripts into `~/projects/grain-sentinel/scripts/`.
-
-## 3. Run The Detector Manually
-
-The tuned detector expects a CSV with a timestamp column and a numeric temperature/sensor column.
+## 3. Prepare runtime folders
 
 ```bash
-cd ~/projects/grain-sentinel
-. .venv/bin/activate
-python scripts/detector_tuned.py /path/to/input.csv \
+mkdir -p data/input data/output logs
+```
+
+The final deployment expects the latest sensor export at:
+
+```text
+/root/grain-sentinel/data/input/latest.csv
+```
+
+The CSV must contain:
+
+- a timestamp column, for example `timestamp`
+- a numeric temperature or sensor column, for example `temperature`
+
+## 4. Run manually
+
+Run the detector once before enabling cron:
+
+```bash
+cd /root/grain-sentinel
+. venv/bin/activate
+
+python scripts/detector_filtered.py \
+  --input data/input/latest.csv \
   --timestamp-column timestamp \
   --sensor-column temperature \
-  --output-log logs/anomalies.jsonl
+  --output-log data/output/alerts.jsonl
 ```
 
-Default tuned parameters:
+For a local validation smoke run, use the included validation input:
 
-- Resample rule: `30min`
-- STL period: `48`
-- Rolling MAD window: `144`
-- Threshold multiplier: `1.24`
-- Consecutive points: `2`
-- Direction: `positive`
+```bash
+python scripts/detector_filtered.py \
+  data/processed/validation_with_injection.csv \
+  --timestamp-column timestamp \
+  --sensor-column temperature \
+  --output-log data/output/alerts.jsonl
+```
 
-Use enough recent history in the input CSV for STL decomposition, ideally several days of data.
+The command prints one JSON payload to stdout and appends the same payload to `data/output/alerts.jsonl`.
 
-## 4. Schedule With Cron
+## 5. Schedule with cron
 
-Open cron:
+Open the crontab:
 
 ```bash
 crontab -e
 ```
 
-Example job, every 10 minutes:
+Run every 10 minutes:
 
 ```cron
-*/10 * * * * cd /home/ubuntu/projects/grain-sentinel && . .venv/bin/activate && python scripts/detector_tuned.py /home/ubuntu/projects/grain-sentinel/data/latest_temperature.csv --timestamp-column timestamp --sensor-column temperature --output-log /home/ubuntu/projects/grain-sentinel/logs/anomalies.jsonl >> /home/ubuntu/projects/grain-sentinel/logs/detector_stdout.log 2>> /home/ubuntu/projects/grain-sentinel/logs/detector_stderr.log
+*/10 * * * * cd /root/grain-sentinel && ./venv/bin/python scripts/detector_filtered.py --input data/input/latest.csv --timestamp-column timestamp --sensor-column temperature --output-log data/output/alerts.jsonl >> logs/cron.log 2>&1
 ```
 
-Telegram alerts are not implemented yet.
+## 6. Check logs
+
+```bash
+tail -n 5 /root/grain-sentinel/data/output/alerts.jsonl
+tail -n 50 /root/grain-sentinel/logs/cron.log
+```
+
+Operational checks to add in a production deployment:
+
+- verify that `latest.csv` is fresh
+- monitor cron failures and detector runtime
+- rotate `logs/cron.log` and `data/output/alerts.jsonl`
+- track row rejection counts and anomaly counts over time
+- send JSONL payloads to Telegram, email, or dashboards via a downstream integration
+
+## Tuned vs filtered detector
+
+`scripts/detector_tuned.py` is kept as historical context for the threshold-tuned detector before ramp-gating. New deployments should use `scripts/detector_filtered.py`.
